@@ -11,7 +11,7 @@ const TYPES = {
   otl:     {label:'OTL', name:'OTL', image:null, tags:['蛇形']},
   kid:     {label:'孩', name:'孩子多',  image:null, tags:['直線','遠程','死亡連鎖']},
   iron:    {label:'熨', name:'熨斗',  image:null, tags:['前衝','側移1格']},
-  shoe:    {label:'鞋', name:'鞋子',  image:null, tags:['跳躍'.'田形步']},
+  shoe:    {label:'鞋', name:'鞋子',  image:null, tags:['跳躍','田形步']},
   tea:     {label:'茶', name:'抹茶小紅豆',  image:null, tags:['跳躍','可復活']},
   godness: {label:'謎', name:'謎之美少女',  image:null, tags:['跳躍','茶的復活型態']},
   night:   {label:'夜', name:'夜王',  image:null, tags:['冰凍','遠程','不可吃子']},
