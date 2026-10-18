@@ -33,6 +33,11 @@ h2,h3{margin:8px 0 4px}h3{font-size:15px}
 .room{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
 #game{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
 [hidden]{display:none!important}
+aside{font-size:16px}
+#hist{font-size:13px}
+.banner{background:var(--ink);color:var(--bg);font-size:20px;font-weight:700;padding:10px 12px;border-radius:6px;margin:6px 0;line-height:1.4}
+.banner.me{background:var(--sel);color:#1d2b2e}
+.banner .warn{background:#c0392b;color:#fff;padding:2px 8px;border-radius:4px;margin-top:6px;font-size:16px}
 </style>
 </head>
 <body>
@@ -63,11 +68,11 @@ h2,h3{margin:8px 0 4px}h3{font-size:15px}
   <div id="board"></div>
   <aside>
     <div id="hdr"></div>
-    <div id="turn"></div>
+    <div id="turn" class="banner" hidden></div>
     <div id="clk" style="font-size:13px;margin:4px 0"></div>
     <div id="result" style="font-size:13px"></div>
     <div id="panel"></div>
-    <button id="leave">離開房間</button>
+    <button id="resign" hidden>投降</button><button id="leave">離開房間</button>
     <div id="info">點選自己的棋子，會標出可走的格子。</div>
     <div id="hist"></div>
   </aside>
@@ -136,6 +141,14 @@ function click(x,y){
   else { selected = null; moves = []; if(q) showInfo(q); }
   render();
 }
+function banner(){   // 反白的大型狀態列：輪到誰、等待誰
+  const el = $('turn'); if(!room || !G || room.status!=='playing'){ el.hidden = true; return; } el.hidden = false;
+  if(G.over){ el.className = 'banner'; el.innerHTML = `<div>${G.over==='draw' ? '和局' : S(G.over) + '獲勝' + (G.over===mySide ? '（你贏了）' : '')}</div>`; return; }
+  const ph = G.phase, who = ph ? ph.side : G.turn, mine = who===mySide, chk = !ph && Rules.check(G, G.turn);
+  const act = ph ? {slash:'斬擊確認', pick:'選擇復活的棋子', place:'放置復活的棋子'}[ph.kind] : '下棋';
+  el.className = 'banner' + (mine ? ' me' : '');
+  el.innerHTML = `<div>${mine ? '輪到你：' + S(who) + '・' + act : '等待 ' + S(who) + ' ' + act + '…'}</div>` + (chk ? `<div class="warn">⚠ ${G.turn===mySide ? '你被將軍！必須解除' : S(G.turn) + '被將軍'}</div>` : '');
+}
 function panelUI(){
   const p = $('panel'); p.innerHTML = ''; const ph = G.phase;
   const add = (t,f) => { const b = document.createElement('button'); b.textContent = t; b.onclick = f; p.appendChild(b); };
@@ -149,10 +162,10 @@ function panelUI(){
 function render(){
   if(!room || !G) return;
   const playing = room.status==='playing', s = room.sides, pm = G.phase && G.phase.kind==='place' && G.phase.side===mySide;
-  $('wait').hidden = playing; $('board').hidden = !playing;
+  $('wait').hidden = playing; $('board').hidden = !playing; $('resign').hidden = !(playing && !G.over && mySide);
   const off = x => s && room.online && !room.online[x] ? '（離線）' : '';
   $('hdr').innerHTML = `房間「${esc(room.name)}」${room.locked ? ' 🔒' : ''}` + (s ? `<br>白方：${esc(s.w.name)}${off('w')}<br>黑方：${esc(s.b.name)}${off('b')}<br>你是：<b>${mySide ? S(mySide) : '旁觀'}</b>` : '');
-  $('turn').textContent = !playing ? '' : G.over ? (G.over==='draw' ? '和局' : S(G.over)+'獲勝') : '輪到：' + S(G.turn) + (G.turn===mySide ? '（你）' : '');
+  banner();
   panelUI();
   const flip = mySide==='b', B = $('board'); B.innerHTML = '';
   for(let j=0;j<SIZE;j++) for(let i=0;i<SIZE;i++){
@@ -172,9 +185,10 @@ function tickClock(){
   if(!room || !G || !G.clock || room.status!=='playing'){ $('clk').innerHTML = ''; $('result').innerHTML = ''; return; }
   const v = Rules.clockView(G, Date.now() + skew);
   $('clk').innerHTML = ['w','b'].map(s => { const on = !G.over && G.clock.active===s;
-    return `<div style="${on ? 'font-weight:700' : 'opacity:.7'}">${S(s)}${s===mySide ? '（你）' : ''}：${on ? '每手 ' + Math.ceil(v.move/1000) + ' 秒｜' : ''}自由 ${fmt(v.free[s])}</div>`; }).join('');
+    return `<div style="font-size:18px;${on ? 'font-weight:700' : 'opacity:.65'}">${S(s)}${s===mySide ? '（你）' : ''}：${on ? '每手 ' + Math.ceil(v.move/1000) + ' 秒' + (v.limit < G.clock.moveMs ? '（殘局）' : '') + '｜' : ''}自由 ${fmt(v.free[s])}</div>`; }).join('');
   const r = G.result;
-  $('result').innerHTML = r ? `<div>⏱ ${S(r.loser)}自由時間用完</div>` + ['w','b'].map(s => `<div>${S(s)}：棋子 ${r.pieces[s]} 分 + 未超時加分 ${r.bonus[s]} = <b>${r.total[s]}</b></div>`).join('') : '';
+  const why = r && ({time:`⏱ ${S(r.loser)}自由時間用完`, repeat:'🔁 同一局面第三次出現，依分數判定', stalemate:'無棋可走（未被將軍），依分數判定', checkmate:`將死：${S(r.loser)}無路可走`, resign:`🏳 ${S(r.loser)}投降`}[r.reason]);
+  $('result').innerHTML = r ? `<div>${why}</div>` + (r.total ? ['w','b'].map(s => `<div>${S(s)}：棋子 ${r.pieces[s]} 分 + 加分 ${r.bonus[s]} = <b>${r.total[s]}</b></div>`).join('') : '') : '';
 }
 setInterval(tickClock, 200);
 $('idin').value = name;
@@ -182,6 +196,10 @@ $('idgo').onclick = () => { name = $('idin').value.trim().slice(0,16); if(!name)
   if(ws && ws.readyState===1) send({t:'hello', id:name, key:key()}); else connect(); };
 $('mkbtn').onclick = () => { err('err1'); send({t:'create', name:$('rn').value, pw:$('rp').value}); };
 $('jnbtn').onclick = () => { err('err1'); send({t:'join', name:$('jn').value, pw:$('jp').value}); };
+let rsT = 0;
+$('resign').onclick = () => { const b = $('resign');   // 兩段式確認，避免誤按
+  if(b.dataset.arm){ delete b.dataset.arm; b.textContent = '投降'; clearTimeout(rsT); send({t:'resign'}); }
+  else { b.dataset.arm = '1'; b.textContent = '再按一次確認投降'; rsT = setTimeout(() => { delete b.dataset.arm; b.textContent = '投降'; }, 3000); } };
 $('leave').onclick = () => send({t:'leave'});
 if(name) connect();
 </script>

@@ -141,7 +141,7 @@ function join(ws, id, m, r){
   room.guest = id; room.sides = hostWhite ? {w: room.host, b: id} : {w: id, b: room.host};
   room.G = Rules.create(); room.status = 'playing'; room.ts = Date.now();
   const env = process.env;   // 棋鐘：每手 8 秒、自由時間 301 秒、開局緩衝 5 秒（測試時可用環境變數調短）
-  room.G.clock = Rules.clockInit(Date.now(), {moveMs: +env.CHESS_MOVE_MS || 8000, freeMs: +env.CHESS_FREE_MS || 301000, graceMs: env.CHESS_GRACE_MS === undefined ? 5000 : +env.CHESS_GRACE_MS});
+  room.G.clock = Rules.clockInit(Date.now(), {moveMs: +env.CHESS_MOVE_MS || 8000, fastMs: +env.CHESS_FAST_MS || 3000, freeMs: +env.CHESS_FREE_MS || 301000, graceMs: env.CHESS_GRACE_MS === undefined ? 5000 : +env.CHESS_GRACE_MS});
   schedule(room);
   playerRoom.set(id, rk); sendRoom(room); broadcastRooms();
 }
